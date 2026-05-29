@@ -79,6 +79,13 @@ jobs:
             echo "Pull imagen publicada"
             docker compose pull
 
+            echo "Limpiar contenedor heredado del deploy anterior (docker run, sin compose)"
+            proj=$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' frontend 2>/dev/null || true)
+            if [ -n "$(docker ps -aq -f name=^frontend$)" ] && [ -z "$proj" ]; then
+              echo "  removiendo contenedor legacy frontend"
+              docker rm -f frontend || true
+            fi
+
             echo "Levantar frontend"
             docker compose up -d --remove-orphans
 
