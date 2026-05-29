@@ -1,0 +1,70 @@
+name: CI/CD - Build, Push & Deploy Frontend
+
+on:
+  push:
+    branches:
+      - deploy
+
+jobs:
+  # ──────────────────────────────────────
+  # Build y push de la imagen del frontend
+  # ──────────────────────────────────────
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repositorio
+        uses: actions/checkout@v4
+
+      - name: Login en Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Build y push front-despacho
+        uses: docker/build-push-action@v5
+        with:
+          context: ./front_despacho
+          file: ./front_despacho/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/front-despacho:latest
+            ${{ secrets.DOCKER_USERNAME }}/front-despacho:${{ github.sha }}
+
+  # ──────────────────────────
+  # Deploy a EC2 - Frontend
+  # ──────────────────────────
+  deploy-frontend:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy en EC2 Frontend
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST_FRONTEND }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          timeout: 60s
+          command_timeout: 5m
+          script_stop: true
+          script: |
+            set -eu
+            echo "Pre-cleanup (stopped containers + dangling images)"
+            docker container prune -f || true
+            docker image prune -f || true
+            df -h /
+            echo "Pull frontend image"
+            timeout 180 docker pull ${{ secrets.DOCKER_USERNAME }}/front-despacho:latest
+            echo "Replace frontend container"
+            docker rm -f frontend || true
+            docker run -d --name frontend \
+              -p 80:80 \
+              --restart unless-stopped \
+              -e BACKEND_VENTAS_HOST=${{ secrets.BACKEND_PRIVATE_IP }} \
+              -e BACKEND_DESPACHOS_HOST=${{ secrets.BACKEND_PRIVATE_IP }} \
+              ${{ secrets.DOCKER_USERNAME }}/front-despacho:latest
+            echo "Post-cleanup (old unused images)"
+            docker image prune -af || true
+            df -h /
+            echo "Frontend deployed"
+            docker ps --filter name=frontend --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
