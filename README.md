@@ -5,8 +5,11 @@ desplegada de forma automatizada a una instancia **EC2 pública** mediante GitHu
 Actions. Es el único componente accesible desde Internet; consume las APIs del
 backend (que vive en una subred privada) vía proxy reverso de nginx.
 
-El backend vive en su propio repositorio:
-`ev-third-year-devops-backend`.
+## Repositorios del proyecto (3-tier)
+
+- **Frontend:** https://github.com/AnthonyBAC/ev-third-year-devops-frontend
+- **Backend:** https://github.com/AnthonyBAC/ev-third-year-devops-backend
+- **Datos (DB):** https://github.com/AnthonyBAC/ev-third-year-devops-db
 
 ---
 
