@@ -1,0 +1,30 @@
+# ─────────────────────────────────────────────────────────────
+# Frontend React/Vite servido por nginx (no root, puerto interno 8080)
+#
+# Uso local (build desde codigo fuente):
+#   docker compose up -d --build
+#
+# Uso en EC2 (imagen ya publicada en Docker Hub):
+#   docker compose pull && docker compose up -d
+#
+# Variables requeridas (ver .env.example):
+#   DOCKER_USERNAME, BACKEND_PRIVATE_IP
+# ─────────────────────────────────────────────────────────────
+services:
+
+  frontend:
+    # En EC2 se usa esta imagen (docker compose pull la baja de Docker Hub).
+    # En local, 'docker compose up --build' la construye desde el contexto.
+    image: ${DOCKER_USERNAME}/front-despacho:latest
+    build:
+      context: ./front_despacho
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: unless-stopped
+    ports:
+      # Expone el 80 del host hacia el 8080 del contenedor (nginx no root)
+      - "80:8080"
+    environment:
+      # IP privada del EC2 backend; nginx la inyecta via envsubst para el proxy_pass
+      BACKEND_VENTAS_HOST: ${BACKEND_PRIVATE_IP}
+      BACKEND_DESPACHOS_HOST: ${BACKEND_PRIVATE_IP}

@@ -31,14 +31,28 @@ jobs:
             ${{ secrets.DOCKER_USERNAME }}/front-despacho:latest
             ${{ secrets.DOCKER_USERNAME }}/front-despacho:${{ github.sha }}
 
-  # ──────────────────────────
-  # Deploy a EC2 - Frontend
-  # ──────────────────────────
+  # ──────────────────────────────────────────────────────────
+  # Deploy a EC2 Frontend con docker compose
+  # 1) Copia docker-compose.yml a la instancia
+  # 2) Hace docker compose pull + up -d (usa imagen de Docker Hub)
+  # ──────────────────────────────────────────────────────────
   deploy-frontend:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy en EC2 Frontend
+      - name: Checkout repositorio
+        uses: actions/checkout@v4
+
+      - name: Copiar compose a EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST_FRONTEND }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          source: "docker-compose.yml"
+          target: "~/app-frontend"
+
+      - name: Levantar frontend con docker compose
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST_FRONTEND }}
@@ -47,24 +61,33 @@ jobs:
           timeout: 60s
           command_timeout: 5m
           script_stop: true
+          # Pasa los valores al shell remoto para que docker compose
+          # los sustituya en ${...} dentro del docker-compose.yml
+          envs: DOCKER_USERNAME,BACKEND_PRIVATE_IP
           script: |
             set -eu
-            echo "Pre-cleanup (stopped containers + dangling images)"
+            echo "Verificar docker compose v2"
+            docker compose version
+
+            cd ~/app-frontend
+
+            echo "Pre-cleanup"
             docker container prune -f || true
             docker image prune -f || true
             df -h /
-            echo "Pull frontend image"
-            timeout 180 docker pull ${{ secrets.DOCKER_USERNAME }}/front-despacho:latest
-            echo "Replace frontend container"
-            docker rm -f frontend || true
-            docker run -d --name frontend \
-              -p 80:80 \
-              --restart unless-stopped \
-              -e BACKEND_VENTAS_HOST=${{ secrets.BACKEND_PRIVATE_IP }} \
-              -e BACKEND_DESPACHOS_HOST=${{ secrets.BACKEND_PRIVATE_IP }} \
-              ${{ secrets.DOCKER_USERNAME }}/front-despacho:latest
-            echo "Post-cleanup (old unused images)"
+
+            echo "Pull imagen publicada"
+            docker compose pull
+
+            echo "Levantar frontend"
+            docker compose up -d --remove-orphans
+
+            echo "Post-cleanup (imagenes viejas sin uso)"
             docker image prune -af || true
             df -h /
-            echo "Frontend deployed"
-            docker ps --filter name=frontend --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+
+            echo "Estado del frontend"
+            docker compose ps
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          BACKEND_PRIVATE_IP: ${{ secrets.BACKEND_PRIVATE_IP }}
