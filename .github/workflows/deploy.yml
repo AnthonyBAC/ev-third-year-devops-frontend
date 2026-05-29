@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - deploy
+  # Disparado por el repo backend cuando su deploy termina OK
+  repository_dispatch:
+    types: [backend-deployed]
 
 jobs:
   # ──────────────────────────────────────
