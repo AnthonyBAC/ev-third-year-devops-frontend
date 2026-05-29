@@ -1,4 +1,4 @@
-# Frontend — Innovatech Chile (EP2 DevOps)
+# Frontend — EV. Devops
 
 Aplicación web **React + Vite** servida por **nginx**, contenerizada con Docker y
 desplegada de forma automatizada a una instancia **EC2 pública** mediante GitHub
