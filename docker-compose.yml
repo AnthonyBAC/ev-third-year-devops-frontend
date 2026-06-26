@@ -15,7 +15,7 @@ services:
   frontend:
     # En EC2 se usa esta imagen (docker compose pull la baja de Docker Hub).
     # En local, 'docker compose up --build' la construye desde el contexto.
-    image: ${DOCKER_USERNAME}/front-despacho:latest
+    image: 211125593312.dkr.ecr.us-east-1.amazonaws.com/front-despacho:latest
     build:
       context: ./front_despacho
       dockerfile: Dockerfile
